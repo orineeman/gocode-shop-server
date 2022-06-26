@@ -1,5 +1,5 @@
 import express from "express";
-import * as fs from "fs/promises";
+import fs from "fs/promises";
 // const port = 8000;
 
 const app = express();
@@ -8,7 +8,15 @@ app.use(express.json());
 app.get("/products", (req, res) => {
   fs.readFile("./products.json", "utf-8").then((products) => {
     const productsInJson = JSON.parse(products);
-    res.send(productsInJson);
+    if (req.query) {
+      const { title } = req.query;
+      const filterProducts = productsInJson.filter((product) =>
+        product.title.toLowerCase().includes(title.toLowerCase())
+      );
+      res.send(filterProducts);
+    } else {
+      res.send(productsInJson);
+    }
   });
 });
 
@@ -46,6 +54,28 @@ app.post("/products", (req, res) => {
   } else res.send("please enter product");
 });
 
+app.patch("/products/:productId", (req, res) => {
+  const { productId } = req.params;
+  fs.readFile("./products.json", "utf-8")
+    .then((products) => {
+      console.log(products);
+      const productsInJson = JSON.parse(products);
+      const productIndex = productsInJson.findIndex(
+        (product) => product.id === +productId
+      );
+      productsInJson[productIndex] = {
+        ...productsInJson[productIndex],
+        ...req.body,
+      };
+      fs.writeFile("./products.json", JSON.stringify(productsInJson)).then(
+        () => {
+          res.send(productsInJson[productIndex]);
+        }
+      );
+    })
+    .catch((e) => res.send("error"));
+});
+
 function getMaxId(arr) {
   const ids = arr.map((object) => {
     return object.id;
@@ -54,6 +84,26 @@ function getMaxId(arr) {
   const max = Math.max(...ids);
   return max;
 }
+
+app.delete("/products/:productId", (req, res) => {
+  const { productId } = req.params;
+  fs.readFile("./products.json", "utf-8")
+    .then((products) => {
+      const productsInJson = JSON.parse(products);
+      const productIndex = productsInJson.findIndex(
+        (product) => product.id === +productId
+      );
+      if (productIndex >= 0) {
+        productsInJson.splice(productIndex, 1);
+      }
+      fs.writeFile("./products.json", JSON.stringify(productsInJson)).then(
+        () => {
+          res.send(productsInJson);
+        }
+      );
+    })
+    .catch((e) => res.send("error"));
+});
 
 // app.listen(port, () => console.log(`listening on port ${port}`));
 app.listen(8000);
